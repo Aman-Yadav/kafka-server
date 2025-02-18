@@ -44,6 +44,7 @@ public class Main {
         try {
 
             while(true){
+
                 InputStream inputStream = clientSocket.getInputStream();
                 OutputStream outputStream = clientSocket.getOutputStream();
                 var response = new ByteArrayOutputStream();
