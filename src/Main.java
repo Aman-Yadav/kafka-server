@@ -1,15 +1,131 @@
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-public class Main {
-    public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
+public class Main {
+    public static void main(String[] args){
+        System.err.println("Logs will appear here!");
+
+
+        int threadPoolSize = 10;
+        int port = 9092;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadPoolSize);
+
+        try (ServerSocket serverSocket = new ServerSocket(port)){
+
+            // setting SO_REUSEADDR ensures that program doesn't run into 'Address already in use' errors
+            serverSocket.setReuseAddress(true);
+            System.out.println("Server listening on port :" + port);
+
+            while(true){
+
+                // Wait for connection from client.
+                Socket clientSocket = serverSocket.accept();
+                executorService.submit(() -> handleClient(clientSocket));
+            }
+        } catch (IOException e){
+            e.printStackTrace();
+        } finally {
+            executorService.shutdown();
+        }
+
+
+    }
+
+    private static void handleClient(Socket clientSocket){
+
+        try {
+
+            while(true){
+                InputStream inputStream = clientSocket.getInputStream();
+                OutputStream outputStream = clientSocket.getOutputStream();
+                var response = new ByteArrayOutputStream();
+
+                // Reading kafka request [order matters as format is predefined]
+                byte[] length = inputStream.readNBytes(4);
+                byte[] apiKey = inputStream.readNBytes(2);
+                byte[] apiVersion = inputStream.readNBytes(2);
+                byte[] correlationId = inputStream.readNBytes(4);
+
+                short shortApiVersion = ByteBuffer.wrap(apiVersion).getShort();
+                short shortApiKey = ByteBuffer.wrap(apiKey).getShort();
+
+                byte[] buffer = new byte[1024];
+                int bytesRead = inputStream.read(buffer);
+
+                response.write(correlationId);
+
+                if(shortApiVersion < 0 || shortApiVersion > 4){
+                    response.write(new byte[] {0, 35});
+                } else {
+                    if(shortApiKey == 18){
+                        response.write(new byte[] {0, 0});  // No error
+                        response.write(1);                   // Number of API keys described
+
+                        response.write(new byte[] {0, 18});  // API key for API_VERSIONS
+                        response.write(new byte[] {0, 3});   // Minimum version
+                        response.write(new byte[] {0, 4});   // Maximum version
+//                      response.write(0);                   // Tagged fields
+//                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time
+//                      response.write(0); // End of tagged fields
+
+//                      response.write(new byte[] {0, 1});  // API key for FETCH (1)
+//                      response.write(new byte[] {0, 0});  // Minimum version for FETCH (0)
+//                      response.write(new byte[] {0, 16}); // Maximum version for FETCH (16)
+//                      response.write(0);                  // Tagged fields for FETCH
+//                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time for FETCH
+//                      response.write(0);                  // End of tagged fields for FETCH
+
+                    } else if(shortApiKey == 1){
+                        response.write(new byte[] {0, 0});  // No error
+                        response.write(1);                   // Number of API keys described
+
+//                      response.write(new byte[] {0, 18});  // API key for API_VERSIONS
+//                      response.write(new byte[] {0, 3});   // Minimum version
+//                      response.write(new byte[] {0, 4});   // Maximum version
+//                      response.write(0);                   // Tagged fields
+//                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time
+//                      response.write(0); // End of tagged fields
+
+                        response.write(new byte[] {0, 1});  // API key for FETCH (1)
+                        response.write(new byte[] {0, 0});  // Minimum version for FETCH (0)
+                        response.write(new byte[] {0, 16}); // Maximum version for FETCH (16)
+                        response.write(0);                  // Tagged fields for FETCH
+                        response.write(new byte[] {0, 0, 0, 0}); // Throttle time for FETCH
+                        response.write(0);                  // End of tagged fields for FETCH
+                    }
+
+                }
+
+                int size = response.size();
+                byte[] sizeBytes = ByteBuffer.allocate(4).putInt(size).array();
+                var finalResponse = response.toByteArray();
+
+                System.out.println(Arrays.toString(sizeBytes));
+                System.out.println(Arrays.toString(finalResponse));
+
+                outputStream.write(sizeBytes);
+                outputStream.write(finalResponse);
+                outputStream.flush();
+            }
+
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
+        } finally {
+            try {
+                if (clientSocket != null) {
+                    clientSocket.close();
+                }
+            } catch (IOException e) {
+                System.out.println("IOException: " + e.getMessage());
+            }
         }
     }
 }
