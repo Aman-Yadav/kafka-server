@@ -41,96 +41,108 @@ public class Main {
 
     private static void handleClient(Socket clientSocket){
 
-        try {
-
+        try{
+            InputStream inputStream = clientSocket.getInputStream();
+            OutputStream outputStream = clientSocket.getOutputStream();
 
             while(true){
-
-                InputStream inputStream = clientSocket.getInputStream();
-                OutputStream outputStream = clientSocket.getOutputStream();
-                var response = new ByteArrayOutputStream();
-
                 KafkaRequest request = parseRequest(inputStream);
+                byte[] response = processRequest(request);
+                sendResponse(outputStream, request.correlationId, response);
 
-                // Reading kafka request [order matters as format is predefined]
-                byte[] length = inputStream.readNBytes(4);
-                byte[] apiKey = inputStream.readNBytes(2);
-                byte[] apiVersion = inputStream.readNBytes(2);
-                byte[] correlationId = inputStream.readNBytes(4);
-
-                short shortApiVersion = ByteBuffer.wrap(apiVersion).getShort();
-                short shortApiKey = ByteBuffer.wrap(apiKey).getShort();
-
-                byte[] buffer = new byte[1024];
-                int bytesRead = inputStream.read(buffer);
-
-                response.write(correlationId);
-
-                if(shortApiVersion < 0 || shortApiVersion > 4){
-                    response.write(new byte[] {0, 35});
-                } else {
-                    if(shortApiKey == 18){
-                        response.write(new byte[] {0, 0});  // No error
-                        response.write(1);                   // Number of API keys described
-
-                        response.write(new byte[] {0, 18});  // API key for API_VERSIONS
-                        response.write(new byte[] {0, 3});   // Minimum version
-                        response.write(new byte[] {0, 4});   // Maximum version
-//                      response.write(0);                   // Tagged fields
-//                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time
-//                      response.write(0); // End of tagged fields
-
-//                      response.write(new byte[] {0, 1});  // API key for FETCH (1)
-//                      response.write(new byte[] {0, 0});  // Minimum version for FETCH (0)
-//                      response.write(new byte[] {0, 16}); // Maximum version for FETCH (16)
-//                      response.write(0);                  // Tagged fields for FETCH
-//                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time for FETCH
-//                      response.write(0);                  // End of tagged fields for FETCH
-
-                    } else if(shortApiKey == 1){
-                        response.write(new byte[] {0, 0});  // No error
-                        response.write(1);                   // Number of API keys described
-
-//                      response.write(new byte[] {0, 18});  // API key for API_VERSIONS
-//                      response.write(new byte[] {0, 3});   // Minimum version
-//                      response.write(new byte[] {0, 4});   // Maximum version
-//                      response.write(0);                   // Tagged fields
-//                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time
-//                      response.write(0); // End of tagged fields
-
-                        response.write(new byte[] {0, 1});  // API key for FETCH (1)
-                        response.write(new byte[] {0, 0});  // Minimum version for FETCH (0)
-                        response.write(new byte[] {0, 16}); // Maximum version for FETCH (16)
-                        response.write(0);                  // Tagged fields for FETCH
-                        response.write(new byte[] {0, 0, 0, 0}); // Throttle time for FETCH
-                        response.write(0);                  // End of tagged fields for FETCH
-                    }
-
-                }
-
-                int size = response.size();
-                byte[] sizeBytes = ByteBuffer.allocate(4).putInt(size).array();
-                var finalResponse = response.toByteArray();
-
-                System.out.println(Arrays.toString(sizeBytes));
-                System.out.println(Arrays.toString(finalResponse));
-
-                outputStream.write(sizeBytes);
-                outputStream.write(finalResponse);
-                outputStream.flush();
             }
-
-        } catch (IOException e) {
-            System.out.println("IOException: " + e.getMessage());
-        } finally {
-            try {
-                if (clientSocket != null) {
-                    clientSocket.close();
-                }
-            } catch (IOException e) {
-                System.out.println("IOException: " + e.getMessage());
-            }
+        } catch (IOException e){
+            System.out.println("Client Disconnected: " + e.getMessage());
         }
+
+//        try {
+//            while(true){
+//
+//                InputStream inputStream = clientSocket.getInputStream();
+//                OutputStream outputStream = clientSocket.getOutputStream();
+//                var response = new ByteArrayOutputStream();
+//
+//                KafkaRequest request = parseRequest(inputStream);
+//
+//                // Reading kafka request [order matters as format is predefined]
+//                byte[] length = inputStream.readNBytes(4);
+//                byte[] apiKey = inputStream.readNBytes(2);
+//                byte[] apiVersion = inputStream.readNBytes(2);
+//                byte[] correlationId = inputStream.readNBytes(4);
+//
+//                short shortApiVersion = ByteBuffer.wrap(apiVersion).getShort();
+//                short shortApiKey = ByteBuffer.wrap(apiKey).getShort();
+//
+//                byte[] buffer = new byte[1024];
+//                int bytesRead = inputStream.read(buffer);
+//
+//                response.write(correlationId);
+//
+//                if(shortApiVersion < 0 || shortApiVersion > 4){
+//                    response.write(new byte[] {0, 35});
+//                } else {
+//                    if(shortApiKey == 18){
+//                        response.write(new byte[] {0, 0});  // No error
+//                        response.write(1);                   // Number of API keys described
+//
+//                        response.write(new byte[] {0, 18});  // API key for API_VERSIONS
+//                        response.write(new byte[] {0, 3});   // Minimum version
+//                        response.write(new byte[] {0, 4});   // Maximum version
+////                      response.write(0);                   // Tagged fields
+////                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time
+////                      response.write(0); // End of tagged fields
+//
+////                      response.write(new byte[] {0, 1});  // API key for FETCH (1)
+////                      response.write(new byte[] {0, 0});  // Minimum version for FETCH (0)
+////                      response.write(new byte[] {0, 16}); // Maximum version for FETCH (16)
+////                      response.write(0);                  // Tagged fields for FETCH
+////                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time for FETCH
+////                      response.write(0);                  // End of tagged fields for FETCH
+//
+//                    } else if(shortApiKey == 1){
+//                        response.write(new byte[] {0, 0});  // No error
+//                        response.write(1);                   // Number of API keys described
+//
+////                      response.write(new byte[] {0, 18});  // API key for API_VERSIONS
+////                      response.write(new byte[] {0, 3});   // Minimum version
+////                      response.write(new byte[] {0, 4});   // Maximum version
+////                      response.write(0);                   // Tagged fields
+////                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time
+////                      response.write(0); // End of tagged fields
+//
+//                        response.write(new byte[] {0, 1});  // API key for FETCH (1)
+//                        response.write(new byte[] {0, 0});  // Minimum version for FETCH (0)
+//                        response.write(new byte[] {0, 16}); // Maximum version for FETCH (16)
+//                        response.write(0);                  // Tagged fields for FETCH
+//                        response.write(new byte[] {0, 0, 0, 0}); // Throttle time for FETCH
+//                        response.write(0);                  // End of tagged fields for FETCH
+//                    }
+//
+//                }
+//
+//                int size = response.size();
+//                byte[] sizeBytes = ByteBuffer.allocate(4).putInt(size).array();
+//                var finalResponse = response.toByteArray();
+//
+//                System.out.println(Arrays.toString(sizeBytes));
+//                System.out.println(Arrays.toString(finalResponse));
+//
+//                outputStream.write(sizeBytes);
+//                outputStream.write(finalResponse);
+//                outputStream.flush();
+//            }
+//
+//        } catch (IOException e) {
+//            System.out.println("IOException: " + e.getMessage());
+//        } finally {
+//            try {
+//                if (clientSocket != null) {
+//                    clientSocket.close();
+//                }
+//            } catch (IOException e) {
+//                System.out.println("IOException: " + e.getMessage());
+//            }
+//        }
     }
 
     private static KafkaRequest parseRequest(InputStream inputStream) throws IOException{
@@ -148,5 +160,23 @@ public class Main {
 
         return new KafkaRequest(apiKey, apiVersion, correlationId, body);
 
+    }
+
+    private static byte[] processRequest(KafkaRequest request){
+        return switch (request.apiKey) {
+            case KafkaApiKeys.PRODUCE -> handleProduce(request);
+            case KafkaApiKeys.FETCH -> handleFetch(request);
+            case KafkaApiKeys.METADATA -> handleMetaData(request);
+            default -> createErrorResponse(request.correlationId);
+        };
+    }
+
+    private static byte[] handleProduce(KafkaRequest request){
+        String topic = new String(request.body, 0, 10).trim();
+        byte[] message = Arrays.copyOfRange(request.body, 10, request.body.length);
+
+        KafkaStorage.storeMessage(topic, message);
+        // Send acknowledgment (Correlation ID + No error code)
+        return new byte[] {0, 0};
     }
 }
