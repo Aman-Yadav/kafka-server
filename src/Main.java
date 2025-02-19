@@ -6,6 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -162,11 +163,11 @@ public class Main {
 
     }
 
-    private static byte[] processRequest(KafkaRequest request){
+    private static byte[] processRequest(KafkaRequest request) throws IOException {
         return switch (request.apiKey) {
             case KafkaApiKeys.PRODUCE -> handleProduce(request);
             case KafkaApiKeys.FETCH -> handleFetch(request);
-            case KafkaApiKeys.METADATA -> handleMetaData(request);
+            case KafkaApiKeys.METADATA -> handleMetaData();
             default -> createErrorResponse(request.correlationId);
         };
     }
@@ -179,4 +180,54 @@ public class Main {
         // Send acknowledgment (Correlation ID + No error code)
         return new byte[] {0, 0};
     }
+
+    private static byte[] handleFetch(KafkaRequest request) throws IOException {
+        String topic = new String(request.body, 0, 10).trim();
+
+        List<byte[]> messages = KafkaStorage.fetchMessages(topic);
+        ByteArrayOutputStream response = new ByteArrayOutputStream();
+
+        for(byte[] msg : messages){
+            response.write(msg.length);
+            response.write(msg);
+        }
+
+        return response.toByteArray();
+    }
+
+    private static byte[] handleMetaData() throws IOException {
+        List<String> topics = KafkaStorage.getTopics();
+        ByteArrayOutputStream response = new ByteArrayOutputStream();
+
+        response.write(topics.size());
+        for(String topic : topics){
+            byte[] topicBytes = topic.getBytes();
+            response.write(topicBytes.length);
+            response.write(topicBytes);
+        }
+
+        return response.toByteArray();
+    }
+
+    public static void sendResponse(OutputStream outputStream, int correlationId, byte[] responseBody) throws IOException{
+        ByteArrayOutputStream response = new ByteArrayOutputStream();
+
+        response.write(ByteBuffer.allocate(4).putInt(responseBody.length + 4).array()); // length prefix
+        response.write(ByteBuffer.allocate(4).putInt(correlationId).array()); // correlationID
+        response.write(responseBody); // actual response data
+
+        byte[] finalResponse = response.toByteArray();
+        outputStream.write(finalResponse);
+        outputStream.flush();
+    }
+
+    public static void createErrorResponse(int correlationID) throws IOException {
+        ByteArrayOutputStream response = new ByteArrayOutputStream();
+
+        response.write(ByteBuffer.allocate(4).putInt(correlationID).array());
+        response.write(new byte[] {0, 35}); // Error code 35 [unknown API]
+
+        response.toByteArray();
+    }
+
 }
