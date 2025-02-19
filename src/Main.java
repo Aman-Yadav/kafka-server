@@ -221,13 +221,13 @@ public class Main {
         outputStream.flush();
     }
 
-    public static void createErrorResponse(int correlationID) throws IOException {
+    public static byte[] createErrorResponse(int correlationID) throws IOException {
         ByteArrayOutputStream response = new ByteArrayOutputStream();
 
         response.write(ByteBuffer.allocate(4).putInt(correlationID).array());
         response.write(new byte[] {0, 35}); // Error code 35 [unknown API]
 
-        response.toByteArray();
+        return response.toByteArray();
     }
 
 }
