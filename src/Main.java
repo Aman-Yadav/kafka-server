@@ -43,11 +43,14 @@ public class Main {
 
         try {
 
+
             while(true){
 
                 InputStream inputStream = clientSocket.getInputStream();
                 OutputStream outputStream = clientSocket.getOutputStream();
                 var response = new ByteArrayOutputStream();
+
+                KafkaRequest request = parseRequest(inputStream);
 
                 // Reading kafka request [order matters as format is predefined]
                 byte[] length = inputStream.readNBytes(4);
@@ -128,5 +131,22 @@ public class Main {
                 System.out.println("IOException: " + e.getMessage());
             }
         }
+    }
+
+    private static KafkaRequest parseRequest(InputStream inputStream) throws IOException{
+        byte[] lengthBytes = inputStream.readNBytes(4);
+        byte[] apiKeyBytes = inputStream.readNBytes(2);
+        byte[] apiVersionBytes = inputStream.readNBytes(2);
+        byte[] correlationIdBytes = inputStream.readNBytes(4);
+
+        short apiKey = ByteBuffer.wrap(apiKeyBytes).getShort();
+        short apiVersion = ByteBuffer.wrap(apiVersionBytes).getShort();
+        int correlationId = ByteBuffer.wrap(correlationIdBytes).getInt();
+
+        int bodyLength = ByteBuffer.wrap(lengthBytes).getInt() - 10; // excluding header size
+        byte[] body = inputStream.readNBytes(bodyLength);
+
+        return new KafkaRequest(apiKey, apiVersion, correlationId, body);
+
     }
 }
