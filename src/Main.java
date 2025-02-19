@@ -56,6 +56,8 @@ public class Main {
             System.out.println("Client Disconnected: " + e.getMessage());
         }
 
+//        Using byte arrays directly here without parsing it into KafkaRequest
+
 //        try {
 //            while(true){
 //
@@ -93,23 +95,11 @@ public class Main {
 ////                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time
 ////                      response.write(0); // End of tagged fields
 //
-////                      response.write(new byte[] {0, 1});  // API key for FETCH (1)
-////                      response.write(new byte[] {0, 0});  // Minimum version for FETCH (0)
-////                      response.write(new byte[] {0, 16}); // Maximum version for FETCH (16)
-////                      response.write(0);                  // Tagged fields for FETCH
-////                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time for FETCH
-////                      response.write(0);                  // End of tagged fields for FETCH
 //
 //                    } else if(shortApiKey == 1){
 //                        response.write(new byte[] {0, 0});  // No error
 //                        response.write(1);                   // Number of API keys described
 //
-////                      response.write(new byte[] {0, 18});  // API key for API_VERSIONS
-////                      response.write(new byte[] {0, 3});   // Minimum version
-////                      response.write(new byte[] {0, 4});   // Maximum version
-////                      response.write(0);                   // Tagged fields
-////                      response.write(new byte[] {0, 0, 0, 0}); // Throttle time
-////                      response.write(0); // End of tagged fields
 //
 //                        response.write(new byte[] {0, 1});  // API key for FETCH (1)
 //                        response.write(new byte[] {0, 0});  // Minimum version for FETCH (0)
