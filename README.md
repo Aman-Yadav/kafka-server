@@ -1,8 +1,4 @@
-Here's a **short README** for your Kafka-like server project:  
-
----
-
-# **Simple Kafka-Like Server**  
+# **Kafka-Like Server**  
 
 A lightweight, minimal **Kafka-like message broker** built using Java. This project implements basic request parsing and core Kafka APIs (**Produce, Fetch, Metadata**) with in-memory log storage.  
 
